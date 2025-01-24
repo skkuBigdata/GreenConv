@@ -271,21 +271,18 @@ if args.local_rank == -1 or get_rank() == 0:
         pbar = None
 
 while True:
-    model.train()  # 모델을 학습 모드로 설정 (드롭아웃 등 학습 전용 동작 활성화)
-    (tr_loss, tr_ppl, mean_ppl, nb_tr_examples, nb_tr_steps) = 0.0, 0.0, 0.0, 0, 0  # 학습 통계 초기화
-    n_token_real, n_token_total = 0, 0  # 실제 처리된 토큰과 전체 토큰 수 초기화
-    train_start_time_epoch = time.time()  # 에포크 시작 시간 기록
-    for batch in train_dataloader:  # 학습 데이터를 배치 단위로 반복
-        # 배치 데이터를 GPU로 이동 (Tensor 객체만 이동)
+    model.train() 
+    (tr_loss, tr_ppl, mean_ppl, nb_tr_examples, nb_tr_steps) = 0.0, 0.0, 0.0, 0, 0 
+    n_token_real, n_token_total = 0, 0  
+    train_start_time_epoch = time.time()  
+    for batch in train_dataloader:  
         batch = {k: v.to(device) if isinstance(v, Tensor) else v for k, v in batch.items()}
-        # 배치에 현재 전역 스텝(global_step)을 추가
         batch.update({'global_step': global_step})
         batch.update({'epoch': epoch})
         batch.update({'warmup_steps': args.warmup_steps})
         outputs = model(**batch)
         # print("outputs", outputs)
         for key, value in outputs.items():
-            # 출력 값이 Tensor이고 NaN 또는 Inf가 포함된 경우 로그 출력
             if isinstance(value, torch.Tensor) and (torch.isnan(value).any() or torch.isinf(value).any()):
                 logger.error(f"Invalid value in model output '{key}': {value}")
 
