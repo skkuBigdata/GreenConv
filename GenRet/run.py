@@ -1166,23 +1166,15 @@ def main():
     args = parse_args()
     config = copy.deepcopy(vars(args))
 
-    #checkpoint = None
-    checkpoint = 'out/model-2/3.pt'
-
-    config['prev_id'] = f'{checkpoint}.code'
-    config['save_path'] = args.save_path + f'-{2}'
-    config['prev_model'] = checkpoint
-    config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
-    test(config)
-
-    return
+    checkpoint = None
+    #checkpoint = 'out/model-2/3.pt'
 
     for loop in range(args.max_length):
         config['save_path'] = args.save_path + f'-{loop + 1}-pre'
         config['code_length'] = loop + 1
         config['prev_model'] = checkpoint
         config['prev_id'] = f'{checkpoint}.code' if checkpoint is not None else None
-        config['epochs'] = 1 if loop == 0 else 10
+        config['epochs'] = 1 if loop == 0 else 5
         config['loss_w'] = 1
         checkpoint = train(config)
         test_dr(config)
@@ -1190,7 +1182,7 @@ def main():
         config['save_path'] = args.save_path + f'-{loop + 1}'
         config['prev_model'] = checkpoint
         config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
-        config['epochs'] = 10
+        config['epochs'] = 20
         config['loss_w'] = 2
         checkpoint = train(config)
         test_dr(config)
@@ -1203,7 +1195,7 @@ def main():
     config['prev_model'] = checkpoint
     add_last(f'{checkpoint}.code', args.code_num, f'{checkpoint}.code.last')
     config['prev_id'] = f'{checkpoint}.code.last'
-    config['epochs'] = 50
+    config['epochs'] = 100
     config['loss_w'] = 3
     checkpoint = train(config)
     test_dr(config)

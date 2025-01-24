@@ -22,3 +22,12 @@ code: https://github.com/Bat-Reality/DDRCU/tree/main
 paper: https://papers.nips.cc/paper_files/paper/2023/hash/91228b942a4528cdae031c1b68b127e8-Abstract-Conference.html
 
 code: https://github.com/sunnweiwei/GenRet?tab=readme-ov-file
+
+
+## Notice
+
+This code is still a work in progress.
+
+We plan to upload an end-to-end model that integrates GenRet and BlenderBot in the future.
+
+The currently uploaded code is for informational purposes only.
