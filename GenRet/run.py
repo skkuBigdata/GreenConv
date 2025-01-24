@@ -894,8 +894,6 @@ def test(config):
                     break
             predictions.append(new_line)
 
-        #print(corpus_ids)
-        #print(docid_to_doc)
         from eval import eval_all
         print('Test', eval_all(predictions, query_ids))
         #print(eval_all([predictions[j] for j in seen_split], [query_ids[j] for j in seen_split]))
