@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual Environment
+env/
+venv/
+.venv/
+ENV/
+*.env
+*.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Data Files
+*.tsv
+*.dat
+*.pickle
+*.pkl
+*.h5
+
+# Logs
+*.log
+*.out
+*.err
+logs/
+*.safetensors
+# Models
+*.h5
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.pb
+models/
+*.bin
+*.msgpack
+*.txt
+*.h5
+
+
+
+# TensorBoard
+**/logs/
+*.tensorboard
+
+# PyTorch Lightning
+lightning_logs/
+
+# Temp Files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+
+# Docker
+*.pid
+*.log
+*.seed
+*.bak
+.dockerignore
+
+# Test Output
+coverage/
+htmlcov/
+*.cover
+*.coverage
+*.testoutput
+
+# PyCharm
+*.idea/
+
+# Misc
+*.ipynb_checkpoint/

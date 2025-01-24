@@ -1,0 +1,17 @@
+CUDA_VISIBLE_DEVICES=0 python getPerosna.py \
+    --config_name strat \
+    --inputter_name strat_interact \
+    --seed 0 \
+    --load_checkpoint /home/user/바탕화면/hyyang/DDRCU/DATA/strat.strat_model/2025-01-12235313.1.5e-05.4.1gpu/epoch-1.bin \
+    --fp16 false \
+    --max_length 50 \
+    --min_length 10 \
+    --temperature 0.5 \
+    --top_k 30 \
+    --top_p 0.9 \
+    --num_beams 1 \
+    --repetition_penalty 1.2 \
+    --no_repeat_ngram_size 3 \
+    --prepare_persona_ahead False \
+    --persona_model_dir_or_name facebook/bart-large-cnn \
+    --persona_ckpt /home/user/바탕화면/hyyang/DDRCU/persona_extractor/pl_root/lightning_logs/version_0/checkpoints/epoch=9-step=10341.ckpt
