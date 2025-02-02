@@ -322,9 +322,6 @@ class Model(nn.Module, GenerationMixin, ABC):
         )
         return quant_output
 
-        def generate(self, *args, **kwargs):
-            return self.model.generate(*args, **kwargs)
-
 
 class OurTrainer:
     @staticmethod
@@ -425,10 +422,9 @@ class OurTrainer:
                 code_number = model.module.code_number
             else:
                 code_number = model.code_number
-            query_code_loss = F.cross_entropy(query_outputs.code_logits.view(-1, code_number),
-                                              batch['ids'][:, 1:].reshape(-1))
-            doc_code_loss = F.cross_entropy(doc_outputs.code_logits.view(-1, code_number),
-                                            batch['ids'][:, 1:].reshape(-1))
+
+            query_code_loss = F.cross_entropy(query_outputs.code_logits.view(-1, code_number), batch['ids'][:, 1:4].reshape(-1))
+            doc_code_loss = F.cross_entropy(doc_outputs.code_logits.view(-1, code_number), batch['ids'][:, 1:4].reshape(-1))
             code_loss = query_code_loss + doc_code_loss  # commitment
         if batch['aux_ids'] is not None:
             aux_query_code_loss = F.cross_entropy(query_prob, batch['aux_ids'])
@@ -509,7 +505,7 @@ def safe_load_embedding(model, file):
 def safe_save(accelerator, model, save_path, epoch, end_epoch=100, save_step=1, last_checkpoint=None):
     os.makedirs(save_path, exist_ok=True)
     accelerator.wait_for_everyone()
-    if accelerator.is_local_main_process and epoch < end_epoch and epoch % save_step == 0:
+    if accelerator.is_local_main_process and epoch < end_epoch and (epoch == 0 or (epoch+1) % save_step == 0):
         unwrap_model = accelerator.unwrap_model(model)
         accelerator.save(unwrap_model.state_dict(), f'{save_path}/{epoch}.pt')
         accelerator.save(unwrap_model.model.state_dict(), f'{save_path}/{epoch}.pt.model')
@@ -522,7 +518,7 @@ def safe_save(accelerator, model, save_path, epoch, end_epoch=100, save_step=1, 
 
 def simple_loader(data, corpus, tokenizer, ids, aux_ids, accelerator):
     dataset = BiDataset(data=data, corpus=corpus, tokenizer=tokenizer,
-                        max_doc_len=128, max_q_len=32, ids=ids, batch_size=1, aux_ids=aux_ids)
+                        max_doc_len=32, max_q_len=128, ids=ids, batch_size=1, aux_ids=aux_ids)
     data_loader = torch.utils.data.DataLoader(dataset, collate_fn=dataset.collate_fn, batch_size=32,
                                               shuffle=True, num_workers=4)
     data_loader = accelerator.prepare(data_loader)
@@ -548,7 +544,7 @@ def train(config):
 
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    save_step = 1
+    save_step = 20
     batch_size = 1
     lr = 5e-4
 
@@ -590,7 +586,7 @@ def train(config):
         ids = [[0]] * len(corpus)
 
     dataset = BiDataset(data=data, corpus=corpus, tokenizer=tokenizer,
-                        max_doc_len=32, max_q_len=32, max_con_len=128, ids=ids, batch_size=in_batch_size, aux_ids=aux_ids)
+                        max_doc_len=32, max_q_len=128, ids=ids, batch_size=in_batch_size, aux_ids=aux_ids)
     accelerator.print(f'data size={len(dataset)}')
 
     data_loader = torch.utils.data.DataLoader(dataset, collate_fn=dataset.collate_fn, batch_size=batch_size,
@@ -701,7 +697,7 @@ def ress_by_prefix(code, prefix=None):
 
 def test(config):
     model_name = config.get('model_name', 't5-base')
-    code_num = config.get('code_num', 512)
+    code_num = config.get('code_num', 256)
     code_length = config.get('code_length', 1)
     prev_id = config.get('prev_id', None)
     save_path = config.get('save_path', None)
@@ -725,17 +721,16 @@ def test(config):
         corpus_ids = [[0]] * len(corpus)
     aux_ids = None
 
-    dataset = BiDataset(data=data, corpus=corpus, tokenizer=tokenizer, max_doc_len=32, max_q_len=32, max_con_len=128, ids=corpus_ids,
+    dataset = BiDataset(data=data, corpus=corpus, tokenizer=tokenizer, max_doc_len=32, max_q_len=128, ids=corpus_ids,
                         aux_ids=aux_ids)
-    data_loader = torch.utils.data.DataLoader(dataset, collate_fn=dataset.collate_fn, batch_size=batch_size,
-                                              shuffle=False, num_workers=16)
+    data_loader = torch.utils.data.DataLoader(dataset, collate_fn=dataset.collate_fn, batch_size=batch_size, shuffle=False, num_workers=16)
     model = model.cuda()
     model.eval()
 
     #seen_split = json.load(open(f'{dev_data}.seen'))
     #unseen_split = json.load(open(f'{dev_data}.unseen'))
-
-    for epoch in range(epochs):
+    #range(epochs)
+    for epoch in [99]:
         if not os.path.exists(f'{save_path}/{epoch}.pt'):
             continue
         print(f'Test {save_path}/{epoch}.pt')
@@ -745,7 +740,9 @@ def test(config):
         tree = Tree()
         tree.set_all(corpus_ids)
 
-        print(corpus_ids)
+        docid_to_doc = defaultdict(list)
+        for i, item in enumerate(corpus_ids):
+            docid_to_doc[str(item)].append(i)
 
         tk0 = tqdm(data_loader, total=len(data_loader))
         acc = []
@@ -757,7 +754,7 @@ def test(config):
                 output = model.generate(
                     input_ids=batch['query'].cuda(),
                     attention_mask=batch['query'].ne(0).cuda(),
-                    max_length=code_length + 1,
+                    max_length=code_length + 2,
                     num_beams=top_k,
                     num_return_sequences=top_k,
                     prefix_allowed_tokens_fn=tree
@@ -773,16 +770,9 @@ def test(config):
                 new_output.append(beam)
                 output_all.extend(new_output)
 
-                #for i, out in enumerate(batch["doc"]):
-                #    print(f"Original Text {i + 1}: {tokenizer.decode(out, skip_special_tokens=True)}")
-
-                #print(new_output)
-
         query_ids = [x[1] for x in data]
 
-        docid_to_doc = defaultdict(list)
-        for i, item in enumerate(corpus_ids):
-            docid_to_doc[str(item)].append(i)
+        
         predictions = []
         for line in output_all:
             new_line = []
@@ -792,6 +782,9 @@ def test(config):
                     continue
                 tmp = docid_to_doc[s]
                 # np.random.shuffle(tmp)
+                print(tmp)
+                for docid in tmp:
+                    print(corpus[docid])
                 new_line.extend(tmp)
                 if len(new_line) > 100:
                     break
@@ -928,7 +921,7 @@ def do_retrieval(xq, index, k=1):
 
 def do_epoch_encode(model: Model, data, corpus, ids, tokenizer, batch_size, save_path, epoch, n_code):
     corpus_q = [['', i] for i in range(len(corpus))]
-    corpus_data = BiDataset(data=corpus_q, corpus=corpus, tokenizer=tokenizer, max_doc_len=32, max_q_len=32, max_con_len=128, ids=ids)
+    corpus_data = BiDataset(data=corpus_q, corpus=corpus, tokenizer=tokenizer, max_doc_len=32, max_q_len=128, ids=ids)
     data_loader = torch.utils.data.DataLoader(corpus_data, collate_fn=corpus_data.collate_fn, batch_size=batch_size,
                                               shuffle=False, num_workers=16)
 
@@ -939,7 +932,7 @@ def do_epoch_encode(model: Model, data, corpus, ids, tokenizer, batch_size, save
     index = build_index(collection, gpu=False)
 
     q_corpus = ['' for _ in range(len(corpus))]
-    corpus_data = BiDataset(data=data, corpus=q_corpus, tokenizer=tokenizer, max_doc_len=32, max_q_len=32, max_con_len=128, ids=ids)
+    corpus_data = BiDataset(data=data, corpus=q_corpus, tokenizer=tokenizer, max_doc_len=32, max_q_len=128, ids=ids)
     data_loader = torch.utils.data.DataLoader(corpus_data, collate_fn=corpus_data.collate_fn, batch_size=batch_size,
                                               shuffle=False, num_workers=4)
     queries, query_code = our_encode(data_loader, model, 'query')
@@ -1070,35 +1063,7 @@ def main():
     config = copy.deepcopy(vars(args))
 
     #checkpoint = None
-    checkpoint = 'out/model-2/3.pt'
-
-    config['prev_id'] = f'{checkpoint}.code'
-    config['save_path'] = args.save_path + f'-{2}'
-    config['prev_model'] = checkpoint
-    config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
-    test(config)
-
-    return
-
-    for loop in range(args.max_length):
-        config['save_path'] = args.save_path + f'-{loop + 1}-pre'
-        config['code_length'] = loop + 1
-        config['prev_model'] = checkpoint
-        config['prev_id'] = f'{checkpoint}.code' if checkpoint is not None else None
-        config['epochs'] = 1 if loop == 0 else 10
-        config['loss_w'] = 1
-        checkpoint = train(config)
-        test_dr(config)
-
-        config['save_path'] = args.save_path + f'-{loop + 1}'
-        config['prev_model'] = checkpoint
-        config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
-        config['epochs'] = 10
-        config['loss_w'] = 2
-        checkpoint = train(config)
-        test_dr(config)
-
-        test(config)
+    checkpoint = 'out/model-3-fit/99.pt'
 
     loop = args.max_length
     config['save_path'] = args.save_path + f'-{loop}-fit'
@@ -1106,12 +1071,43 @@ def main():
     config['prev_model'] = checkpoint
     add_last(f'{checkpoint}.code', args.code_num, f'{checkpoint}.code.last')
     config['prev_id'] = f'{checkpoint}.code.last'
-    config['epochs'] = 50
+    config['epochs'] = 100
     config['loss_w'] = 3
-    checkpoint = train(config)
-    test_dr(config)
+
     test(config)
-    print(checkpoint)
+
+    # for loop in range(args.max_length):
+    #     config['save_path'] = args.save_path + f'-{loop + 1}-pre'
+    #     config['code_length'] = loop + 1
+    #     config['prev_model'] = checkpoint
+    #     config['prev_id'] = f'{checkpoint}.code' if checkpoint is not None else None
+    #     config['epochs'] = 1 if loop == 0 else 1
+    #     config['loss_w'] = 1
+    #     checkpoint = train(config)
+    #     test_dr(config)
+
+    #     config['save_path'] = args.save_path + f'-{loop + 1}'
+    #     config['prev_model'] = checkpoint
+    #     config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
+    #     config['epochs'] = 20
+    #     config['loss_w'] = 2
+    #     checkpoint = train(config)
+    #     test_dr(config)
+
+    #     test(config)
+
+    # loop = args.max_length
+    # config['save_path'] = args.save_path + f'-{loop}-fit'
+    # config['code_length'] = loop + 1
+    # config['prev_model'] = checkpoint
+    # add_last(f'{checkpoint}.code', args.code_num, f'{checkpoint}.code.last')
+    # config['prev_id'] = f'{checkpoint}.code.last'
+    # config['epochs'] = 100
+    # config['loss_w'] = 3
+    # checkpoint = train(config)
+    # test_dr(config)
+    # test(config)
+    # print(checkpoint)
 
 
 if __name__ == '__main__':

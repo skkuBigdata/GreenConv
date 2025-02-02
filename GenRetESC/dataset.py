@@ -1,3 +1,11 @@
+from torch.utils.data import Dataset
+from abc import ABC
+from collections import defaultdict
+import numpy as np
+import torch
+from torch.nn.utils.rnn import pad_sequence
+from copy import deepcopy
+
 class BiDataset(Dataset, ABC):
     def __init__(self, data, corpus, tokenizer, max_doc_len=32, max_q_len=128, ids=None, batch_size=1, aux_ids=None):
         self.data = data
@@ -70,7 +78,7 @@ class BiDataset(Dataset, ABC):
             collect = []
             for item in work_item_set:
                 query, doc, ids, aux_ids = self.getitem(item)
-                collect.append((context, query, doc, ids, aux_ids))
+                collect.append((query, doc, ids, aux_ids))
             return collect
 
     def __len__(self):
