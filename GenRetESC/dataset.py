@@ -41,9 +41,7 @@ class BiDataset(Dataset, ABC):
         
 
     def getitem(self, item):
-        context, question, doc_id = self.data[item]
-
-        query_ids = self.concatenate_encode(context, question, self.max_q_len)
+        query, doc_id = self.data[item]
 
         doc = self.corpus[doc_id]
         if self.ids is None:
@@ -55,10 +53,7 @@ class BiDataset(Dataset, ABC):
         else:
             aux_ids = self.aux_ids[doc_id]
         
-        if isinstance(doc, list):
-            doc = doc[0]
-        
-        return (query_ids,
+        return (torch.tensor(self.tokenizer.encode(query, truncation=True, max_length=self.max_q_len)),
                 torch.tensor(self.tokenizer.encode(doc, truncation=True, max_length=self.max_doc_len)),
                 ids, aux_ids)
 
