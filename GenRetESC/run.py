@@ -423,8 +423,8 @@ class OurTrainer:
             else:
                 code_number = model.code_number
 
-            query_code_loss = F.cross_entropy(query_outputs.code_logits.view(-1, code_number), batch['ids'][:, 1:4].reshape(-1))
-            doc_code_loss = F.cross_entropy(doc_outputs.code_logits.view(-1, code_number), batch['ids'][:, 1:4].reshape(-1))
+            query_code_loss = F.cross_entropy(query_outputs.code_logits.view(-1, code_number), batch['ids'][:, 1:].reshape(-1))
+            doc_code_loss = F.cross_entropy(doc_outputs.code_logits.view(-1, code_number), batch['ids'][:, 1:].reshape(-1))
             code_loss = query_code_loss + doc_code_loss  # commitment
         if batch['aux_ids'] is not None:
             aux_query_code_loss = F.cross_entropy(query_prob, batch['aux_ids'])
@@ -1062,39 +1062,8 @@ def main():
     args = parse_args()
     config = copy.deepcopy(vars(args))
 
-    #checkpoint = None
-    checkpoint = 'out/model-3-fit/99.pt'
-
-    loop = args.max_length
-    config['save_path'] = args.save_path + f'-{loop}-fit'
-    config['code_length'] = loop + 1
-    config['prev_model'] = checkpoint
-    add_last(f'{checkpoint}.code', args.code_num, f'{checkpoint}.code.last')
-    config['prev_id'] = f'{checkpoint}.code.last'
-    config['epochs'] = 100
-    config['loss_w'] = 3
-
-    test(config)
-
-    # for loop in range(args.max_length):
-    #     config['save_path'] = args.save_path + f'-{loop + 1}-pre'
-    #     config['code_length'] = loop + 1
-    #     config['prev_model'] = checkpoint
-    #     config['prev_id'] = f'{checkpoint}.code' if checkpoint is not None else None
-    #     config['epochs'] = 1 if loop == 0 else 1
-    #     config['loss_w'] = 1
-    #     checkpoint = train(config)
-    #     test_dr(config)
-
-    #     config['save_path'] = args.save_path + f'-{loop + 1}'
-    #     config['prev_model'] = checkpoint
-    #     config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
-    #     config['epochs'] = 20
-    #     config['loss_w'] = 2
-    #     checkpoint = train(config)
-    #     test_dr(config)
-
-    #     test(config)
+    checkpoint = None
+    #checkpoint = 'out/model-3-fit/99.pt'
 
     # loop = args.max_length
     # config['save_path'] = args.save_path + f'-{loop}-fit'
@@ -1104,10 +1073,41 @@ def main():
     # config['prev_id'] = f'{checkpoint}.code.last'
     # config['epochs'] = 100
     # config['loss_w'] = 3
-    # checkpoint = train(config)
-    # test_dr(config)
+
     # test(config)
-    # print(checkpoint)
+
+    for loop in range(args.max_length):
+        config['save_path'] = args.save_path + f'-{loop + 1}-pre'
+        config['code_length'] = loop + 1
+        config['prev_model'] = checkpoint
+        config['prev_id'] = f'{checkpoint}.code' if checkpoint is not None else None
+        config['epochs'] = 1 if loop == 0 else 1
+        config['loss_w'] = 1
+        checkpoint = train(config)
+        test_dr(config)
+
+        config['save_path'] = args.save_path + f'-{loop + 1}'
+        config['prev_model'] = checkpoint
+        config['codebook_init'] = f'{checkpoint}.kmeans.{args.code_num}'
+        config['epochs'] = 20
+        config['loss_w'] = 2
+        checkpoint = train(config)
+        test_dr(config)
+
+        test(config)
+
+    loop = args.max_length
+    config['save_path'] = args.save_path + f'-{loop}-fit'
+    config['code_length'] = loop + 1
+    config['prev_model'] = checkpoint
+    add_last(f'{checkpoint}.code', args.code_num, f'{checkpoint}.code.last')
+    config['prev_id'] = f'{checkpoint}.code.last'
+    config['epochs'] = 100
+    config['loss_w'] = 3
+    checkpoint = train(config)
+    test_dr(config)
+    test(config)
+    print(checkpoint)
 
 
 if __name__ == '__main__':

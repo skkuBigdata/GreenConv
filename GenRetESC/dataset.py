@@ -16,6 +16,10 @@ class BiDataset(Dataset, ABC):
         self.ids = ids
         self.batch_size = batch_size
 
+        special_tokens = {"additional_special_tokens": ["[STRATEGY]", "[DIALOG]", "[SEP]"]}
+
+        tokenizer.add_special_tokens(special_tokens)
+
         if self.batch_size != 1:
             ids_to_item = defaultdict(list)
             for i, item in enumerate(self.data):
@@ -27,15 +31,19 @@ class BiDataset(Dataset, ABC):
             self.ids_to_item = None
         self.aux_ids = aux_ids
 
-    def getitem(self, item):
-        queries, doc_id = self.data[item]
-        if isinstance(queries, list):
-            query = np.random.choice(queries)
-        else:
-            query = queries
+    def concatenate_encode(self, context, question, max_len):
+        half_len = max_len // 2
+        context_ids = self.tokenizer.encode(context, truncation=True, max_length=half_len)
+        question_ids = self.tokenizer.encode(question, truncation=True, max_length=half_len)
+        
+        query_ids = context_ids + question_ids
+        return torch.tensor(query_ids)
+        
 
-        while isinstance(doc_id, list):
-            doc_id = doc_id[0]
+    def getitem(self, item):
+        context, question, doc_id = self.data[item]
+
+        query_ids = self.concatenate_encode(context, question, self.max_q_len)
 
         doc = self.corpus[doc_id]
         if self.ids is None:
@@ -50,7 +58,7 @@ class BiDataset(Dataset, ABC):
         if isinstance(doc, list):
             doc = doc[0]
         
-        return (torch.tensor(self.tokenizer.encode(query, truncation=True, max_length=self.max_q_len)),
+        return (query_ids,
                 torch.tensor(self.tokenizer.encode(doc, truncation=True, max_length=self.max_doc_len)),
                 ids, aux_ids)
 
