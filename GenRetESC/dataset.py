@@ -16,7 +16,7 @@ class BiDataset(Dataset, ABC):
         self.ids = ids
         self.batch_size = batch_size
 
-        special_tokens = {"additional_special_tokens": ["[STRATEGY]", "[DIALOG]", "[SEP]"]}
+        special_tokens = {"additional_special_tokens": ["[STRATEGY]", "[RESPONSE]", "[SEP]"]}
 
         tokenizer.add_special_tokens(special_tokens)
 
